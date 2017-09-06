@@ -1,4 +1,4 @@
 # Assume the virtualenv is called .env
 
-cp frameworkpython .env/bin
-.env/bin/frameworkpython -m IPython notebook
+cp -n frameworkpython ${VIRTUAL_ENV}/bin
+${VIRTUAL_ENV}/bin/frameworkpython -m IPython notebook
