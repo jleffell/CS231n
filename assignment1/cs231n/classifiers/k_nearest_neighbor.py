@@ -64,6 +64,7 @@ class KNearestNeighbor(object):
     """
     num_test = X.shape[0]
     num_train = self.X_train.shape[0]
+    print X.shape, self.X_train.shape
     dists = np.zeros((num_test, num_train))
     for i in xrange(num_test):
       for j in xrange(num_train):
@@ -73,11 +74,12 @@ class KNearestNeighbor(object):
         # training point, and store the result in dists[i, j]. You should   #
         # not use a loop over dimension.                                    #
         #####################################################################
-        dists[i,j] = np.sqrt( np.sum( np.square(X[i]-self.X_train[j])))
+        dists[i,j] = np.sqrt(np.sum(np.square(self.X_train[j] - X[i])))
         #####################################################################
         #                       END OF YOUR CODE                            #
         #####################################################################
     return dists
+   
 
   def compute_distances_one_loop(self, X):
     """
@@ -95,7 +97,7 @@ class KNearestNeighbor(object):
       # Compute the l2 distance between the ith test point and all training #
       # points, and store the result in dists[i, :].                        #
       #######################################################################
-      pass
+      dists[i] = np.sqrt(np.sum(np.square(self.X_train - X[i]), axis=1))
       #######################################################################
       #                         END OF YOUR CODE                            #
       #######################################################################
@@ -123,7 +125,17 @@ class KNearestNeighbor(object):
     # HINT: Try to formulate the l2 distance using matrix multiplication    #
     #       and two broadcast sums.                                         #
     #########################################################################
-    pass
+    # x is test, y is train
+    #xx = np.sum(np.square(X), axis=1).reshape((num_test,1))
+    #xy = np.matmul(X,self.X_train.T)
+    #yy = np.sum(np.square(self.X_train), axis=1).reshape((1,num_train))
+    #dists = np.sqrt(xx - 2.0*xy + yy)
+    
+    xx = np.sum(np.square(X), axis=1, keepdims=True)
+    xy = np.matmul(X,self.X_train.T)
+    yy = np.sum(np.square(self.X_train), axis=1, keepdims=True).T
+    dists = np.sqrt(xx - 2.0*xy + yy)
+    
     #########################################################################
     #                         END OF YOUR CODE                              #
     #########################################################################
@@ -155,7 +167,9 @@ class KNearestNeighbor(object):
       # neighbors. Store these labels in closest_y.                           #
       # Hint: Look up the function numpy.argsort.                             #
       #########################################################################
-      pass
+      # sorted = np.argsort(dists[i,:])
+      # closest_y = self.y_train[sorted[:k]]
+      closest_y = self.y_train[np.argsort(dists[i,:])[:k]]
       #########################################################################
       # TODO:                                                                 #
       # Now that you have found the labels of the k nearest neighbors, you    #
@@ -163,10 +177,13 @@ class KNearestNeighbor(object):
       # Store this label in y_pred[i]. Break ties by choosing the smaller     #
       # label.                                                                #
       #########################################################################
-      pass
+      # indices = [i for i, x in enumerate(a) if x == a[am]]
+      # freq = np.bincount(closest_y)
+      # maxbin = np.argmax(bins)
+      # y_pred[i] = bins.index(np.argmax(bins))
+      y_pred[i] = np.argmax(np.bincount(closest_y))
       #########################################################################
       #                           END OF YOUR CODE                            # 
       #########################################################################
-
     return y_pred
 
