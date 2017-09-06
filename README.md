@@ -1,2 +1,2 @@
 # cs231n
-My working directory for Stanford's CS231n Course on Computer Vision and CNNs
+My working repository for the assignments from Stanford's [CS231n Course: Computer Vision and CNNs](http://cs231n.stanford.edu/)
