@@ -26,20 +26,16 @@ def svm_loss_naive(W, X, y, reg):
   num_classes = W.shape[1]
   num_train = X.shape[0]
   loss = 0.0
-  #print(X.shape, X[0].shape, W.shape, y.shape, y[0].shape)
   for i in xrange(num_train):
     scores = X[i].dot(W)
     correct_class_score = scores[y[i]]
-    # print(scores.shape, scores[y[i]], y[i])
+    margins = scores - correct_class_score + 1
+    nmargins = (margins > 0).sum() - 1
     for j in xrange(num_classes):
       if j == y[i]:
-        for k in range(num_classes):
-            if k is not j:
-                margin = scores[k] - correct_class_score + 1 # note delta = 1
-                if margin > 0:
-                    dW[:,j] = dW[:,j] - X[i]
+          dW[:,j] -= nmargins*X[i]
       else:
-          margin = scores[j] - correct_class_score + 1 # note delta = 1
+          margin = margins[j]
           if margin > 0:
               loss += margin
               dW[:,j] += X[i]
@@ -78,7 +74,23 @@ def svm_loss_vectorized(W, X, y, reg):
   # Implement a vectorized version of the structured SVM loss, storing the    #
   # result in loss.                                                           #
   #############################################################################
-  pass
+  num_classes = W.shape[1]
+  num_train = X.shape[0]
+    
+  delta = 1.0
+  scores = np.dot(X,W)
+    
+  correct_class_score = scores[ range(num_train), y].reshape(num_train,1)
+  margins = np.maximum(0, scores - correct_class_score + delta)
+  margins[ range(num_train), y] = 0.0
+
+  loss = np.sum(margins)
+  
+  # Divide by number of samples
+  loss /= num_train
+  
+  loss += reg* np.sum(np.square(W))
+   
   #############################################################################
   #                             END OF YOUR CODE                              #
   #############################################################################
