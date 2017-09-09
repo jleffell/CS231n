@@ -2,6 +2,9 @@ import numpy as np
 from random import shuffle
 from past.builtins import xrange
 
+def softmax(z,j):
+    return np.divide(np.exp(z[j]),np.sum(np.exp(z)))
+
 def softmax_loss_naive(W, X, y, reg):
   """
   Softmax loss function, naive implementation (with loops)
@@ -30,7 +33,23 @@ def softmax_loss_naive(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  num_classes = W.shape[1]
+  num_train = X.shape[0]
+  for i in xrange(num_train):
+      xi = X[i]
+      f = xi.dot(W)
+      f -= np.max(f)
+      loss -= np.log(softmax(f,y[i])) 
+      dW[:,y[i]] -= xi
+      for j in xrange(num_classes):
+          dW[:,j] += softmax(f,j)*xi
+       
+  loss /= num_train
+  dW /= num_train
+    
+  loss += reg*np.sum(W*W)
+  dW += reg*2.0*W
+  
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
@@ -54,7 +73,30 @@ def softmax_loss_vectorized(W, X, y, reg):
   # here, it is easy to run into numeric instability. Don't forget the        #
   # regularization!                                                           #
   #############################################################################
-  pass
+  num_classes = W.shape[1]
+  num_train = X.shape[0]
+    
+  f = np.dot(X,W)
+  f -= np.amax(f, axis=1).reshape(num_train,1)
+    
+  loss = -np.sum(np.log(np.divide(np.exp(f[range(num_train),y]),np.sum(np.exp(f),axis=1))))
+  
+  # Scale each sample by the softmax of f
+  A = np.divide(np.exp(f),np.sum(np.exp(f),axis=1).reshape((num_train,1)))
+
+  # Subtract off X[i] for correct class 
+  A[range(num_train),y] -= 1
+  
+  dW = np.matmul(X.T,A)
+    
+  # Normalize
+  loss /= num_train
+  dW /= num_train
+  
+  # Regularization contribution
+  loss += reg*np.sum(W*W)
+  dW += reg*2.0*W
+ 
   #############################################################################
   #                          END OF YOUR CODE                                 #
   #############################################################################
