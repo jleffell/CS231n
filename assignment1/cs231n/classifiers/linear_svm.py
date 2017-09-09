@@ -75,35 +75,28 @@ def svm_loss_vectorized(W, X, y, reg):
   # Implement a vectorized version of the structured SVM loss, storing the    #
   # result in loss.                                                           #
   #############################################################################
-  dW = np.zeros(W.shape)
-
   num_classes = W.shape[1]
   num_train = X.shape[0]
     
   delta = 1.0
   scores = np.dot(X,W)
     
-  correct_class_score = scores[ range(num_train), y].reshape(num_train,1)
-  margins = np.maximum(0, scores - correct_class_score + delta)
-  margins[ range(num_train), y] = 0
-
+  correct_class_score = scores[ range(num_train), y]
+  margins = np.maximum(0, scores - correct_class_score.reshape(num_train,1) + delta)
+  
   # Evaluate loss
+  margins[range(num_train), y] = 0
   loss = np.sum(margins)
 
   # Evaluate gradient
-  # nmargin = np.count_nonzero(margins, axis=1) <- should use this if we had numpy > 10.12
-  nmargin = np.reshape((margins != 0).sum(1), (num_train,1))
+  
+  # Build matrix with ones on the j =/= y[i]'th column to add in single X[i] for each
+  margins[margins>0]=1 # Set all positive margins for j =/= y[i] to 1
+  # scale = np.count_nonzero(margins, axis=1) <- should use this if we had numpy > 10.12
+  margins[range(num_train),y] = -(margins != 0).sum(1) # Set value for j == y[i] to number positive margins for each sample 
     
-  # j = y[i] case
-  H = np.zeros((num_train,num_classes)) 
-  H[range(num_train), y] = nmargin[range(num_train), 0]
-  margins[margins>0]=1
-  
-  dW = np.matmul(X.T,margins) - np.matmul(X.T,H) 
-
-  # j =/= y[i] case
-  
-
+  # Assemble gradient
+  dW = np.matmul(X.T,margins)    
 
   # Divide by number of samples
   loss /= num_train
