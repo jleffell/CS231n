@@ -4,6 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from past.builtins import xrange
 
+def softmax(z,j):
+    return np.divide(np.exp(z[j]),np.sum(np.exp(z)))
+
 class TwoLayerNet(object):
   """
   A two-layer fully-connected neural network. The net has an input dimension of
@@ -76,7 +79,9 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    pass
+    z1 = np.dot(X,W1) + b1
+    h1 = np.where(z1 < 0, 0, z1)  # z1[z1 < 0] = 0.0
+    scores = np.dot(h1,W2) + b2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -93,7 +98,10 @@ class TwoLayerNet(object):
     # in the variable loss, which should be a scalar. Use the Softmax           #
     # classifier loss.                                                          #
     #############################################################################
-    pass
+    scores -= np.amax(scores, axis=1).reshape(N,1) # Normalize
+    loss = -np.sum(np.log(np.divide(np.exp(scores[range(N),y]),np.sum(np.exp(scores),axis=1))))
+    loss /= N # Normalize
+    loss += reg*(np.sum(W1*W1) + np.sum(W2*W2)) # Add contribution from regularization
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -105,7 +113,22 @@ class TwoLayerNet(object):
     # and biases. Store the results in the grads dictionary. For example,       #
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
-    pass
+    
+   
+    # Second Layer
+    # Scale each sample by the softmax of f
+    A = np.divide(np.exp(scores),np.sum(np.exp(scores),axis=1).reshape((N,1)))
+    # Subtract off X[i] for correct class 
+    A[range(N),y] -= 1
+    dW = np.matmul(h1.T,A)
+    dW /= N
+    dW += reg*2.0*W2
+    grads['W2'] = dW
+    print("W2: ", dW.shape, h1.shape, z1.shape)
+    # First Layer
+    dW = None
+    dW = np.zeros_like(W1)
+    grads['W1'] = dW
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
