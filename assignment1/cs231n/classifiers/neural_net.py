@@ -80,7 +80,7 @@ class TwoLayerNet(object):
     # shape (N, C).                                                             #
     #############################################################################
     z1 = np.dot(X,W1) + b1
-    h1 = np.where(z1 < 0, 0, z1)  # z1[z1 < 0] = 0.0
+    h1 = np.where(z1 < 0, 0, z1) # z1[z1 < 0] = 0.0
     scores = np.dot(h1,W2) + b2
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -115,20 +115,47 @@ class TwoLayerNet(object):
     #############################################################################
     
    
-    # Second Layer
+    # Vectorized Second Layer - come back for this after writing rest of serialized
     # Scale each sample by the softmax of f
-    A = np.divide(np.exp(scores),np.sum(np.exp(scores),axis=1).reshape((N,1)))
+    #A = np.divide(np.exp(scores),np.sum(np.exp(scores),axis=1).reshape((N,1)))
     # Subtract off X[i] for correct class 
-    A[range(N),y] -= 1
-    dW = np.matmul(h1.T,A)
-    dW /= N
-    dW += reg*2.0*W2
-    grads['W2'] = dW
-    print("W2: ", dW.shape, h1.shape, z1.shape)
+    #A[range(N),y] -= 1
+    #dW = np.matmul(h1.T,A)
+    #dW /= N
+    #dW += reg*2.0*W2
+    #grads['W2'] = dW
+    
+    # Serial Second Layer
+    num_class = len(b2)
+    dW2 = np.zeros_like(W2)
+    db2 = np.zeros_like(b2)
+    
+    for i in xrange(N):
+        for j in xrange(num_class):
+            delta = softmax(scores[i,:],j) 
+            if j == y[i]:
+                delta-=1
+            dW2[:,j] += h1[i,:]*delta
+            db2[j]+= delta
+
+    # Normalize, regularize and store gradients in dict
+    dW2 /= N
+    dW2 += reg*2.0*W2
+    grads['W2'] = dW2
+    
+    db2 /= N
+    grads['b2']=db2
+    
+    
     # First Layer
     dW = None
     dW = np.zeros_like(W1)
     grads['W1'] = dW
+    grads['b1']=np.zeros_like(b1)
+    
+    
+
+    
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
