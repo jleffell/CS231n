@@ -129,12 +129,13 @@ class TwoLayerNet(object):
     num_class = len(b2)
     dW2 = np.zeros_like(W2)
     db2 = np.zeros_like(b2)
-    
+    del2 = np.zeros((N,num_class))
     for i in xrange(N):
         for j in xrange(num_class):
             delta = softmax(scores[i,:],j) 
             if j == y[i]:
                 delta-=1
+            del2[i,j] = delta
             dW2[:,j] += h1[i,:]*delta
             db2[j]+= delta
 
@@ -148,13 +149,24 @@ class TwoLayerNet(object):
     
     
     # First Layer
-    dW = None
-    dW = np.zeros_like(W1)
-    grads['W1'] = dW
-    grads['b1']=np.zeros_like(b1)
+    dW1 = np.zeros_like(W1)
+    db1 = np.zeros_like(b1)
     
+    dfda = np.where(z1 < 0, 0, 1)
+    del1 = np.zeros((N,10))
+    for i in xrange(N):
+        del1[i,:] = np.dot(W2,del2[i,:]) * dfda[i,:]
+        for j in xrange(10):
+            dW1[:,j] += X[i,:]*del1[i,j]
+            db1[j] += del1[i,j]
+        #for j in xrange(num_class):
+   
+    dW1 /= N
+    dW1 += reg*2.0*W1
+    grads['W1'] = dW1
     
-
+    db1 /= N
+    grads['b1']=db1
     
     #############################################################################
     #                              END OF YOUR CODE                             #
