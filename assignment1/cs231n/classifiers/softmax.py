@@ -83,7 +83,7 @@ def softmax_loss_vectorized(W, X, y, reg):
   
   # Scale each sample by the softmax of f
   # df = np.divide(np.exp(f),np.sum(np.exp(f),axis=1).reshape((num_train,1)))
-  df = np.divide(np.exp(f),np.sum(np.exp(f),axis=1, keepdims=True)
+  df = np.divide(np.exp(f),np.sum(np.exp(f),axis=1, keepdims=True))
 
   # Subtract off X[i] for correct class 
   df[range(num_train),y] -= 1
