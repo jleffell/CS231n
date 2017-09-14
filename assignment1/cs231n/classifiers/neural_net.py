@@ -71,7 +71,8 @@ class TwoLayerNet(object):
     W1, b1 = self.params['W1'], self.params['b1']
     W2, b2 = self.params['W2'], self.params['b2']
     N, D = X.shape
-
+    H = W1.shape[1] # Number of hidden units
+    
     # Compute the forward pass
     scores = None
     #############################################################################
@@ -79,9 +80,8 @@ class TwoLayerNet(object):
     # Store the result in the scores variable, which should be an array of      #
     # shape (N, C).                                                             #
     #############################################################################
-    z1 = np.dot(X,W1) + b1
-    h1 = np.where(z1 < 0, 0, z1) # z1[z1 < 0] = 0.0
-    scores = np.dot(h1,W2) + b2
+    hidden_layer = np.maximum(0,np.dot(X,W1) + b1)
+    scores = np.dot(hidden_layer,W2) + b2
     #############################################################################
     #                              END OF YOUR CODE                             #
     #############################################################################
@@ -98,8 +98,9 @@ class TwoLayerNet(object):
     # in the variable loss, which should be a scalar. Use the Softmax           #
     # classifier loss.                                                          #
     #############################################################################
-    scores -= np.amax(scores, axis=1).reshape(N,1) # Normalize
-    loss = -np.sum(np.log(np.divide(np.exp(scores[range(N),y]),np.sum(np.exp(scores),axis=1))))
+    #scores -= np.amax(scores, axis=1).reshape(N,1) # Normalize
+    exp_scores = np.exp(scores)
+    loss = -np.sum(np.log(np.divide(exp_scores[range(N),y],np.sum(exp_scores, axis=1))))
     loss /= N # Normalize
     loss += reg*(np.sum(W1*W1) + np.sum(W2*W2)) # Add contribution from regularization
     #############################################################################
@@ -114,32 +115,14 @@ class TwoLayerNet(object):
     # grads['W1'] should store the gradient on W1, and be a matrix of same size #
     #############################################################################
     
-   
-    # Vectorized Second Layer - come back for this after writing rest of serialized
-    # Scale each sample by the softmax of f
-    #A = np.divide(np.exp(scores),np.sum(np.exp(scores),axis=1).reshape((N,1)))
-    # Subtract off X[i] for correct class 
-    #A[range(N),y] -= 1
-    #dW = np.matmul(h1.T,A)
-    #dW /= N
-    #dW += reg*2.0*W2
-    #grads['W2'] = dW
+    probs = np.divide(exp_scores, np.sum(exp_scores, axis=1, keepdims=True))
     
-    # Serial Second Layer
-    num_class = len(b2)
-    dW2 = np.zeros_like(W2)
-    db2 = np.zeros_like(b2)
-    del2 = np.zeros((N,num_class))
-    for i in xrange(N):
-        for j in xrange(num_class):
-            delta = softmax(scores[i,:],j) 
-            if j == y[i]:
-                delta-=1
-            del2[i,j] = delta
-            dW2[:,j] += h1[i,:]*delta
-            db2[j]+= delta
+    dscores = probs
+    dscores[range(N), y] -= 1 # dL/da - Loss gradient wrt to activations on final layer
+    
+    dW2 = np.dot(hidden_layer.T, dscores)
+    db2 = np.sum(dscores, axis=0, keepdims=True)
 
-    # Normalize, regularize and store gradients in dict
     dW2 /= N
     dW2 += reg*2.0*W2
     grads['W2'] = dW2
@@ -149,24 +132,61 @@ class TwoLayerNet(object):
     
     
     # First Layer
-    dW1 = np.zeros_like(W1)
-    db1 = np.zeros_like(b1)
+    dhidden = np.dot(dscores, W2.T)
+    dhidden[hidden_layer <= 0] = 0.0 # Remove influence from ReLU units with activations <= 0
     
-    dfda = np.where(z1 < 0, 0, 1)
-    del1 = np.zeros((N,10))
-    for i in xrange(N):
-        del1[i,:] = np.dot(W2,del2[i,:]) * dfda[i,:]
-        for j in xrange(10):
-            dW1[:,j] += X[i,:]*del1[i,j]
-            db1[j] += del1[i,j]
-        #for j in xrange(num_class):
-   
+    dW1 = np.dot(X.T, dhidden)
+    db1 = np.sum(dhidden, axis=0, keepdims=True)
+
     dW1 /= N
     dW1 += reg*2.0*W1
     grads['W1'] = dW1
     
     db1 /= N
     grads['b1']=db1
+    
+    # Vectorized Second Layer - come back for this after writing rest of serialized
+    # Scale each sample by the softmax of f
+    # A = np.divide(np.exp(scores),np.sum(np.exp(scores),axis=1).reshape((N,1)))
+    # Subtract off X[i] for correct class 
+    # A[range(N),y] -= 1
+    # dW = np.matmul(h1.T,A)
+    # dW /= N
+    # dW += reg*2.0*W2
+    # grads['W2'] = dW
+    
+    # What I had before seeing the notes/working through matrix approach
+    # Serial Second Layer
+    # num_class = len(b2)
+    # dW2 = np.zeros_like(W2)
+    # db2 = np.zeros_like(b2)
+    # del2 = np.zeros((N,num_class))
+    # for i in xrange(N):
+    #    for j in xrange(num_class):
+    #        delta = softmax(scores[i,:],j) 
+    #        if j == y[i]:
+    #            delta-=1
+    #        del2[i,j] = delta
+    #         dW2[:,j] += h1[i,:]*delta
+    #         db2[j]+= delta
+
+    # Normalize, regularize and store gradients in dict
+    # dW2 /= N
+    # dW2 += reg*2.0*W2
+    # grads['W2'] = dW2
+    
+    # db2 /= N
+    # grads['b2']=db2
+    
+    # First Layer
+    #dfda = np.where(hidden_layer < 0, 0, 1)
+    #del1 = np.zeros((N,H))
+    #for i in xrange(N):
+    #    del1[i,:] = np.dot(W2,del2[i,:]) * dfda[i,:]
+    #    for j in xrange(H):
+    #        dW1[:,j] += X[i,:]*del1[i,j]
+    #        db1[j] += del1[i,j]
+        #for j in xrange(num_class):
     
     #############################################################################
     #                              END OF YOUR CODE                             #
@@ -211,7 +231,10 @@ class TwoLayerNet(object):
       # TODO: Create a random minibatch of training data and labels, storing  #
       # them in X_batch and y_batch respectively.                             #
       #########################################################################
-      pass
+      ibatch = np.random.choice(num_train, batch_size, replace=True)
+    
+      X_batch = X[ibatch]
+      y_batch = y[ibatch]
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -226,7 +249,11 @@ class TwoLayerNet(object):
       # using stochastic gradient descent. You'll need to use the gradients   #
       # stored in the grads dictionary defined above.                         #
       #########################################################################
-      pass
+      self.params['W1'] -= learning_rate*grads['W1']
+      self.params['b1'] -= learning_rate*grads['b1'].reshape(self.params['b1'].shape)
+      self.params['W2'] -= learning_rate*grads['W2']
+      self.params['b2'] -= learning_rate*grads['b2'].reshape(self.params['b2'].shape)
+
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
@@ -271,7 +298,10 @@ class TwoLayerNet(object):
     ###########################################################################
     # TODO: Implement this function; it should be VERY simple!                #
     ###########################################################################
-    pass
+    hidden_layer = np.maximum(0,np.dot(X,self.params['W1']) + self.params['b1'])
+    scores = np.dot(hidden_layer,self.params['W2']) + self.params['b2'] 
+    
+    y_pred = np.argmax(scores, axis=1)
     ###########################################################################
     #                              END OF YOUR CODE                           #
     ###########################################################################
