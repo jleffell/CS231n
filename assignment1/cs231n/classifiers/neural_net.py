@@ -41,8 +41,10 @@ class TwoLayerNet(object):
     self.params = {}
     self.params['W1'] = std * np.random.randn(input_size, hidden_size)
     self.params['b1'] = np.zeros(hidden_size)
+    #self.params['b1'] = std * np.random.randn(hidden_size)
     self.params['W2'] = std * np.random.randn(hidden_size, output_size)
     self.params['b2'] = np.zeros(output_size)
+    #self.params['b2'] = std * np.random.randn(output_size)
 
   def loss(self, X, y=None, reg=0.0):
     """
@@ -119,15 +121,16 @@ class TwoLayerNet(object):
     
     dscores = probs
     dscores[range(N), y] -= 1 # dL/da - Loss gradient wrt to activations on final layer
+    dscores /= N
     
     dW2 = np.dot(hidden_layer.T, dscores)
     db2 = np.sum(dscores, axis=0, keepdims=True)
 
-    dW2 /= N
+    #dW2 /= N
     dW2 += reg*2.0*W2
     grads['W2'] = dW2
     
-    db2 /= N
+    #db2 /= N
     grads['b2']=db2
     
     
@@ -138,11 +141,11 @@ class TwoLayerNet(object):
     dW1 = np.dot(X.T, dhidden)
     db1 = np.sum(dhidden, axis=0, keepdims=True)
 
-    dW1 /= N
+    #dW1 /= N
     dW1 += reg*2.0*W1
     grads['W1'] = dW1
     
-    db1 /= N
+    #db1 /= N
     grads['b1']=db1
     
     # Vectorized Second Layer - come back for this after writing rest of serialized
@@ -197,7 +200,7 @@ class TwoLayerNet(object):
   def train(self, X, y, X_val, y_val,
             learning_rate=1e-3, learning_rate_decay=0.95,
             reg=5e-6, num_iters=100,
-            batch_size=200, verbose=False):
+            batch_size=200, verbose=False, mu=None, mu_rate = 1.03, mu_max=0.99):
     """
     Train this neural network using stochastic gradient descent.
 
@@ -217,12 +220,17 @@ class TwoLayerNet(object):
     """
     num_train = X.shape[0]
     iterations_per_epoch = max(num_train / batch_size, 1)
-
+    
     # Use SGD to optimize the parameters in self.model
     loss_history = []
     train_acc_history = []
     val_acc_history = []
 
+    vW1 = 0.0
+    vW2 = 0.0
+    vb1 = 0.0
+    vb2 = 0.0
+    
     for it in xrange(num_iters):
       X_batch = None
       y_batch = None
@@ -249,17 +257,38 @@ class TwoLayerNet(object):
       # using stochastic gradient descent. You'll need to use the gradients   #
       # stored in the grads dictionary defined above.                         #
       #########################################################################
-      self.params['W1'] -= learning_rate*grads['W1']
-      self.params['b1'] -= learning_rate*grads['b1'].reshape(self.params['b1'].shape)
-      self.params['W2'] -= learning_rate*grads['W2']
-      self.params['b2'] -= learning_rate*grads['b2'].reshape(self.params['b2'].shape)
+      if mu is not None:
+          # SGD + Nestorov Momentum
+          vW1_prev = vW1
+          vW2_prev = vW2
+          vb1_prev = vb1
+          vb2_prev = vb2
+            
+          vW1 = mu*vW1 - learning_rate*grads['W1']
+          vW2 = mu*vW2 - learning_rate*grads['W2']
+          vb1 = mu*vb1 - learning_rate*grads['b1'].reshape(self.params['b1'].shape)
+          vb2 = mu*vb2 - learning_rate*grads['b2'].reshape(self.params['b2'].shape)
+            
+          self.params['W1'] += (1+mu)*vW1 - mu*vW1_prev
+          self.params['W2'] += (1+mu)*vW2 - mu*vW2_prev
+          self.params['b1'] += (1+mu)*vb1 - mu*vb1_prev
+          self.params['b2'] += (1+mu)*vb2 - mu*vb2_prev
+      
+      else:
+          # Vanilla SGD
+          self.params['W1'] -= learning_rate*grads['W1']
+          self.params['b1'] -= learning_rate*grads['b1'].reshape(self.params['b1'].shape)
+          self.params['W2'] -= learning_rate*grads['W2']
+          self.params['b2'] -= learning_rate*grads['b2'].reshape(self.params['b2'].shape)
 
       #########################################################################
       #                             END OF YOUR CODE                          #
       #########################################################################
 
-      if verbose and it % 100 == 0:
-        print('iteration %d / %d: loss %f' % (it, num_iters, loss))
+      if verbose and it % iterations_per_epoch == 0:
+        sg1 = np.sum(np.abs(grads['W1']))
+        sg2 = np.sum(np.abs(grads['W2']))
+        print('iteration %d / %d: loss %f sg1: %e sg2: %e' % (it, num_iters, loss, sg1, sg2))
 
       # Every epoch, check train and val accuracy and decay learning rate.
       if it % iterations_per_epoch == 0:
@@ -271,6 +300,8 @@ class TwoLayerNet(object):
 
         # Decay learning rate
         learning_rate *= learning_rate_decay
+        if mu is not None:
+            mu = np.minimum(mu*mu_rate, mu_max)
 
     return {
       'loss_history': loss_history,
