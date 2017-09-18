@@ -121,16 +121,12 @@ class TwoLayerNet(object):
     
     dscores = probs
     dscores[range(N), y] -= 1 # dL/da - Loss gradient wrt to activations on final layer
-    dscores /= N
     
-    dW2 = np.dot(hidden_layer.T, dscores)
-    db2 = np.sum(dscores, axis=0, keepdims=True)
-
-    #dW2 /= N
+    dW2 = np.dot(hidden_layer.T, dscores) / N
+    db2 = np.sum(dscores, axis=0) / N
+    
     dW2 += reg*2.0*W2
     grads['W2'] = dW2
-    
-    #db2 /= N
     grads['b2']=db2
     
     
@@ -138,15 +134,13 @@ class TwoLayerNet(object):
     dhidden = np.dot(dscores, W2.T)
     dhidden[hidden_layer <= 0] = 0.0 # Remove influence from ReLU units with activations <= 0
     
-    dW1 = np.dot(X.T, dhidden)
-    db1 = np.sum(dhidden, axis=0, keepdims=True)
+   
+    dW1 = np.dot(X.T, dhidden) / N
+    db1 = np.sum(dhidden, axis=0) / N
 
-    #dW1 /= N
     dW1 += reg*2.0*W1
     grads['W1'] = dW1
-    
-    #db1 /= N
-    grads['b1']=db1
+    grads['b1'] = db1
     
     # Vectorized Second Layer - come back for this after writing rest of serialized
     # Scale each sample by the softmax of f
@@ -277,9 +271,9 @@ class TwoLayerNet(object):
       else:
           # Vanilla SGD
           self.params['W1'] -= learning_rate*grads['W1']
-          self.params['b1'] -= learning_rate*grads['b1'].reshape(self.params['b1'].shape)
+          self.params['b1'] -= learning_rate*grads['b1']#.reshape(self.params['b1'].shape)
           self.params['W2'] -= learning_rate*grads['W2']
-          self.params['b2'] -= learning_rate*grads['b2'].reshape(self.params['b2'].shape)
+          self.params['b2'] -= learning_rate*grads['b2']#.reshape(self.params['b2'].shape)
 
       #########################################################################
       #                             END OF YOUR CODE                          #
