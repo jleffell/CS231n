@@ -47,7 +47,11 @@ class TwoLayerNet(object):
         # weights and biases using the keys 'W1' and 'b1' and second layer weights #
         # and biases using the keys 'W2' and 'b2'.                                 #
         ############################################################################
-        pass
+        self.params['W1'] = weight_scale * np.random.randn(input_dim, hidden_dim)
+        self.params['b1'] = np.zeros(hidden_dim)
+        self.params['W2'] = weight_scale * np.random.randn(hidden_dim, num_classes)
+        self.params['b2'] = np.zeros(num_classes)
+
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -77,7 +81,10 @@ class TwoLayerNet(object):
         # TODO: Implement the forward pass for the two-layer net, computing the    #
         # class scores for X and storing them in the scores variable.              #
         ############################################################################
-        pass
+        
+        a, l1_cache = affine_relu_forward(X, self.params['W1'], self.params['b1'])
+        scores, l2_cache = affine_forward(a, self.params['W2'], self.params['b2'])
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -97,11 +104,27 @@ class TwoLayerNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        N = X.shape[0]
+        
+        # Loss
+        data_loss, dL = softmax_loss(scores, y) 
+        reg_loss = 0.5 * self.reg * ( np.sum( self.params['W1']**2) + np.sum( self.params['W2']**2))
+        loss = data_loss + reg_loss
+        
+        # Backprop
+        dscores, dW2, db2 = affine_backward(dL, l2_cache)
+        da, dW1, db1 = affine_relu_backward(dscores, l1_cache)
+        
+        grads['W2'] = dW2 + self.reg*self.params['W2']
+        grads['b2'] = db2
+
+        grads['W1'] = dW1 + self.reg*self.params['W1']
+        grads['b1'] = db1
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
-
+        
         return loss, grads
 
 
