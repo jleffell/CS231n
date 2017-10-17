@@ -251,7 +251,28 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
-        pass
+        cache = []
+        x = X[:]
+        for i in range(self.num_layers-1):
+            
+            layer = i + 1
+
+            # Affine
+            x, local_cache = affine_forward(x, self.params['W' + str(layer)], self.params['b' + str(layer)])
+            cache.append(local_cache)
+           
+            # Batch Normalization
+            
+            # ReLU
+            x, local_cache = relu_forward(x)
+            cache.append(local_cache)
+            
+            # Dropout
+        
+        # Final Affine Layer
+        scores, local_cache = affine_forward(x, self.params['W' + str(self.num_layers)], self.params['b' + str(self.num_layers)])
+        cache.append(local_cache)
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -274,7 +295,33 @@ class FullyConnectedNet(object):
         # automated tests, make sure that your L2 regularization includes a factor #
         # of 0.5 to simplify the expression for the gradient.                      #
         ############################################################################
-        pass
+        N = X.shape[0]
+        
+        # Loss
+        data_loss, dx = softmax_loss(scores, y) 
+        # reg_loss = 0.5 * self.reg * ( np.sum( self.params['W1']**2) + np.sum( self.params['W2']**2))
+        reg_loss = 0
+        for i in range(self.num_layers):
+            reg_loss += np.sum( self.params['W'+str(i+1)]**2)
+        loss = data_loss + 0.5*self.reg*reg_loss
+        
+        # Backprop
+        
+        # Final Affine Layer
+        dx, dW, db = affine_backward(dx, cache.pop())
+        
+        grads['W'+str(self.num_layers)] = dW + self.reg*self.params['W'+str(self.num_layers)]
+        grads['b'+str(self.num_layers)] = db
+        
+        for i in range(self.num_layers-1,0,-1):
+            
+            da = relu_backward(dx, cache.pop())
+            dx, dW, db = affine_backward(da, cache.pop())
+            
+            grads['W'+str(i)] = dW + self.reg*self.params['W'+str(i)]
+            grads['b'+str(i)] = db
+                                                                            
+        
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
