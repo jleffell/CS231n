@@ -272,7 +272,7 @@ def batchnorm_backward(dout, cache):
     invden = 1/np.sqrt(sample_var + eps)
     dxhat = dout*gamma
     denp1 = np.power(sample_var + eps, -3/2)
-    dvar = np.sum(dout*gamma*(x-sample_mean), axis = 0)*(-0.5)*denp1
+    dvar = np.sum(dxhat*(x-sample_mean), axis = 0)*(-0.5)*denp1
     dmean = -np.sum(dxhat, axis = 0)*invden + dvar * -(2/N) * np.sum(x-sample_mean,axis=0)
     
                                      
