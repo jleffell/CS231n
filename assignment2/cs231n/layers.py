@@ -277,9 +277,9 @@ def batchnorm_backward(dout, cache):
     
     # Step 5
     dvar = 0.5*dstd/np.sqrt(var + eps) 
-    
+
     # Step 4
-    dxzerosqr = (1./N)*dvar
+    dxzerosqr = (1./N)*np.ones_like(xzerosqr)*dvar # Do not have to put in the np.ones_like
     
     # Step 3
     dxzero += 2 * xzero * dxzerosqr
@@ -289,7 +289,7 @@ def batchnorm_backward(dout, cache):
     dx = dxzero
    
     # Step 1
-    dx += (1./N)*dmu
+    dx += (1./N)*np.ones_like(x)*dmu # Do not have to put in the np.ones_like
     
   
     ###########################################################################
@@ -325,21 +325,10 @@ def batchnorm_backward_alt(dout, cache):
 
     N, D = x.shape
     
-    sample_mean = np.mean(x, axis = 0)
-    sample_var = np.var(x, axis = 0)
-    
-    xhat = (x - sample_mean)/np.sqrt(sample_var + eps)
-    dbeta = np.sum(dout, axis = 0)
-    dgamma = np.sum(xhat*dout, axis=0)
-    
-    invden = 1/np.sqrt(sample_var + eps)
     dxhat = dout*gamma
-    densqr = sample_var + eps
-    invden = np.power(densqr, -1/2)
-    denp1 = np.power(densqr, -3/2)
-    dvar = np.sum(dxhat*(x-sample_mean), axis = 0)*(-0.5)*denp1
-    dmean = -np.sum(dxhat, axis = 0)*invden # zero: + dvar * -(2/N) * np.sum(x-sample_mean,axis=0)
-    dx = dxhat*invden + dvar * (2/N) * (x-sample_mean) + dmean/N
+    dbeta = np.sum(dout, axis = 0)
+    dgamma = np.sum(xhat*dout, axis = 0)
+    dx = invstd * ( dxhat - (1./N) * (xhat * np.sum(dxhat*xhat, axis = 0) + np.sum(dxhat, axis = 0)))
    
     ###########################################################################
     #                             END OF YOUR CODE                            #
