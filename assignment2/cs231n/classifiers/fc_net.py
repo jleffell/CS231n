@@ -193,6 +193,10 @@ class FullyConnectedNet(object):
         for i in range(len(dims)-1):
             self.params['W' + str(i+1)] = weight_scale * np.random.randn(dims[i], dims[i+1])
             self.params['b' + str(i+1)] = np.zeros(dims[i+1])
+            # Don't need batch normalization on final (output) layer
+            if self.use_batchnorm and i < len(dims) - 2:
+                self.params['gamma' + str(i+1)] = np.ones(dims[i+1])
+                self.params['beta' + str(i+1)] = np.zeros(dims[i+1])
         
         ############################################################################
         #                             END OF YOUR CODE                             #
@@ -215,7 +219,7 @@ class FullyConnectedNet(object):
         self.bn_params = []
         if self.use_batchnorm:
             self.bn_params = [{'mode': 'train'} for i in range(self.num_layers - 1)]
-
+            
         # Cast all parameters to the correct datatype
         for k, v in self.params.items():
             self.params[k] = v.astype(dtype)
@@ -251,8 +255,10 @@ class FullyConnectedNet(object):
         # self.bn_params[1] to the forward pass for the second batch normalization #
         # layer, etc.                                                              #
         ############################################################################
+
         cache = []
         x = X[:]
+        
         for i in range(self.num_layers-1):
             
             layer = i + 1
@@ -262,6 +268,10 @@ class FullyConnectedNet(object):
             cache.append(local_cache)
            
             # Batch Normalization
+            if self.use_batchnorm: 
+                x, local_cache = batchnorm_forward(x, self.params['gamma'+str(layer)], 
+                                                   self.params['beta'+str(layer)], self.bn_params[i])
+                cache.append(local_cache)
             
             # ReLU
             x, local_cache = relu_forward(x)
@@ -299,28 +309,31 @@ class FullyConnectedNet(object):
         
         # Loss
         data_loss, dx = softmax_loss(scores, y) 
-        # reg_loss = 0.5 * self.reg * ( np.sum( self.params['W1']**2) + np.sum( self.params['W2']**2))
         reg_loss = 0
         for i in range(self.num_layers):
             reg_loss += np.sum( self.params['W'+str(i+1)]**2)
         loss = data_loss + 0.5*self.reg*reg_loss
         
-        # Backprop
-        
-        # Final Affine Layer
-        dx, dW, db = affine_backward(dx, cache.pop())
+        # Backward Pass
+        dx, dW, db = affine_backward(dx, cache.pop()) # Final Affine Layer
         
         grads['W'+str(self.num_layers)] = dW + self.reg*self.params['W'+str(self.num_layers)]
         grads['b'+str(self.num_layers)] = db
-        
+
         for i in range(self.num_layers-1,0,-1):
             
             da = relu_backward(dx, cache.pop())
+            
+            if self.use_batchnorm: 
+                da, dgamma, dbeta = batchnorm_backward(da, cache.pop())
+            
             dx, dW, db = affine_backward(da, cache.pop())
             
-            grads['W'+str(i)] = dW + self.reg*self.params['W'+str(i)]
-            grads['b'+str(i)] = db
-                                                                            
+            grads['W' + str(i)] = dW + self.reg*self.params['W'+str(i)]
+            grads['b' + str(i)] = db
+            if self.use_batchnorm:
+                grads['gamma'+str(i)] = dgamma
+                grads['beta'+str(i)] = dbeta
         
         ############################################################################
         #                             END OF YOUR CODE                             #
