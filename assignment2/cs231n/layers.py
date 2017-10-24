@@ -370,7 +370,7 @@ def dropout_forward(x, dropout_param):
         #######################################################################
         mask = (np.random.rand(*x.shape) < p) / p
         # print('p = ', p, np.sum(mask==0)/(x.shape[0]*x.shape[1]))
-        out = x * mask
+        out = np.multiply(mask, x)
         #######################################################################
         #                           END OF YOUR CODE                          #
         #######################################################################
@@ -405,7 +405,7 @@ def dropout_backward(dout, cache):
         #######################################################################
         # TODO: Implement training phase backward pass for inverted dropout   #
         #######################################################################
-        dx = mask*dout
+        dx = np.multiply(mask, dout)
         #######################################################################
         #                          END OF YOUR CODE                           #
         #######################################################################
@@ -448,32 +448,88 @@ def conv_forward_naive(x, w, b, conv_param):
     N, C, H, W = x.shape
     F = b.shape[0]
     HH, WW = w.shape[2:]
-    HP = np.int0( 1 + (H + 2 * pad - HH) / stride)
-    WP = np.int0( 1 + (W + 2 * pad - WW) / stride)
     
-    xp = np.lib.pad(x, ((0,0),(0,0),(pad,pad),(pad,pad)), 'constant') # Padded input
+    HP = np.intp( 1 + (H + 2 * pad - HH) / stride)
+    WP = np.intp( 1 + (W + 2 * pad - WW) / stride)
+    
+    xp = np.lib.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant') # Padded input
     out = np.zeros( (N, F, HP, WP) )
-    wt = w.reshape( (F, -1) ).T
+    wT = w.reshape((F, -1)).T
+    
+    hs = stride*np.arange(HP)
+    ws = stride*np.arange(WP)
     
     for i in range(HP):
         for j in range(WP):
-            im = i*stride
-            ip = im + HH
-            jm = j*stride
-            jp = jm + WW
-            
-            xtmp = xp[:,:,im:ip,jm:jp].reshape( (N, -1) )
-            out[:,:,i,j] += np.dot(xtmp, wt)
+            out[:,:,i,j] += np.dot(xp[:,:,hs[i]:hs[i]+HH,ws[j]:ws[j]+WW].reshape((N, -1)), wT)
     
     out = out + b[:, np.newaxis, np.newaxis]
     
-    
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
     cache = (x, w, b, conv_param)
     return out, cache
 
+def conv_forward_naive2(x, w, b, conv_param):
+    """
+    A naive implementation of the forward pass for a convolutional layer.
+
+    The input consists of N data points, each with C channels, height H and
+    width W. We convolve each input with F different filters, where each filter
+    spans all C channels and has height HH and width HH.
+
+    Input:
+    - x: Input data of shape (N, C, H, W)
+    - w: Filter weights of shape (F, C, HH, WW)
+    - b: Biases, of shape (F,)
+    - conv_param: A dictionary with the following keys:
+      - 'stride': The number of pixels between adjacent receptive fields in the
+        horizontal and vertical directions.
+      - 'pad': The number of pixels that will be used to zero-pad the input.
+
+    Returns a tuple of:
+    - out: Output data, of shape (N, F, H', W') where H' and W' are given by
+      H' = 1 + (H + 2 * pad - HH) / stride
+      W' = 1 + (W + 2 * pad - WW) / stride
+    - cache: (x, w, b, conv_param)
+    """
+    out = None
+    ###########################################################################
+    # TODO: Implement the convolutional forward pass.                         #
+    # Hint: you can use the function np.pad for padding.                      #
+    ###########################################################################
+    stride = conv_param['stride']
+    pad = conv_param['pad']
+    
+    N, C, H, W = x.shape
+    F = b.shape[0]
+    HH, WW = w.shape[2:]
+    
+    HP = np.intp( 1 + (H + 2 * pad - HH) / stride)
+    WP = np.intp( 1 + (W + 2 * pad - WW) / stride)
+    
+    xp = np.lib.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant') # Padded input
+    out = np.zeros( (N, F, HP, WP) )
+    wT = w.reshape((F, C, -1)).T
+    
+    hs = stride*np.arange(HP)
+    ws = stride*np.arange(WP)
+    
+    for c in range(C):
+        for i in range(HP):
+            for j in range(WP):
+                out[:,:,i,j] += np.dot(xp[:,c,hs[i]:hs[i]+HH,ws[j]:ws[j]+WW].reshape((N, -1)), wT[:,c,:])
+    
+    out = out + b[:, np.newaxis, np.newaxis]
+    
+
+    ###########################################################################
+    #                             END OF YOUR CODE                            #
+    ###########################################################################
+    cache = (x, w, b, conv_param)
+    return out, cache
 
 def conv_backward_naive(dout, cache):
     """
@@ -492,7 +548,36 @@ def conv_backward_naive(dout, cache):
     ###########################################################################
     # TODO: Implement the convolutional backward pass.                        #
     ###########################################################################
-    pass
+    x, w, b, conv_param = cache
+    
+    N, F, HP, WP = dout.shape
+    C, HH, WW = w.shape[1:]
+    
+    stride = conv_param['stride']
+    pad = conv_param['pad']
+    
+    xp = np.lib.pad(x, ((0, 0), (0, 0), (pad, pad), (pad, pad)), 'constant') # Padded input - eliminate if possible
+    dxp = np.zeros_like(xp)
+    dw = np.zeros_like(w)
+    
+    #wT = w.reshape((F, -1)).T
+    
+    hs = stride*np.arange(HP)
+    ws = stride*np.arange(WP)
+    
+    for i in range(HP):
+        for j in range(WP):
+            
+            # dx
+            dxp[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] += np.dot(dout[:,:,i,j], w.reshape((F, -1))).reshape((N,C,HH,WW))
+            
+            # dw
+            #dw += np.dot(dout.T[j,i], xp[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW].reshape((N, -1))).reshape(w.shape)
+            dw += np.dot(dout[:,:,i,j].T, xp[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW].reshape((N, -1))).reshape(w.shape)
+    
+    db = np.sum(dout, axis = (0,2,3))
+    dx = dxp[:,:,pad:-pad, pad:-pad]
+
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
