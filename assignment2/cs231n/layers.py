@@ -650,6 +650,7 @@ def max_pool_backward_naive(dout, cache):
     ws = stride*np.arange(WP)
     
     dx = np.zeros_like(x)
+    #dx2 =  np.zeros_like(x)
     
     for n in range(N):
         for c in range(C):
@@ -657,7 +658,22 @@ def max_pool_backward_naive(dout, cache):
                 for j in range(WP):
                     ismax = x[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] == np.amax(x[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] ) 
                     dx[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] += ismax*dout[n,c,i,j]
+    
+   # for n in range(N):
+   #     for c in range(C):
+   #         for i in range(HP):
+   #             for j in range(WP):
+                    #ismax = x[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] == np.amax(x[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] ) 
+   #                 dx[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] += np.where(x[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] == np.amax(x[n,c,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] ) , dout[n,c,i,j], 0)
                     
+    #for i in range(HP):
+    #    for j in range(WP):
+    #        margin = (x[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] - np.amax(x[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW], keepdims=True))
+            #print(margin.shape, dx[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW].shape, dout[:,:,i,j, np.newaxis,np.newaxis].shape)
+    #        dx[:,:,hs[i]:hs[i]+HH, ws[j]:ws[j]+WW] += np.where(margin == 0 , dout[:,:,i,j], 0)   
+            #print(margin)
+    #print(np.sum(np.abs(dx-dx2)))
+    
     ###########################################################################
     #                             END OF YOUR CODE                            #
     ###########################################################################
